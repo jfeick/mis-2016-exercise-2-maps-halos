@@ -53,6 +53,8 @@ import java.util.Random;
     runtime permission requests from Google API Samples:
     https://github.com/googlemaps/android-samples/blob/master/ApiDemos/app/src/main/java/com/example/mapdemo/MyLocationDemoActivity.java
 
+    marker handling from Google API Samples:
+    https://github.com/googlemaps/android-samples/blob/master/ApiDemos/app/src/main/java/com/example/mapdemo/MarkerDemoActivity.java
  */
 
 public class MapsActivity extends AppCompatActivity
