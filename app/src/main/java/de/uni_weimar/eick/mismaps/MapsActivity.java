@@ -36,6 +36,9 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
@@ -61,7 +64,8 @@ public class MapsActivity extends AppCompatActivity
         GoogleMap.OnInfoWindowClickListener,
         GoogleMap.OnInfoWindowLongClickListener,
         GoogleMap.OnInfoWindowCloseListener,
-        GoogleMap.OnMapLongClickListener
+        GoogleMap.OnMapLongClickListener,
+        GoogleMap.OnCameraChangeListener
 {
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     private boolean mPermissionDenied = false;
@@ -73,6 +77,7 @@ public class MapsActivity extends AppCompatActivity
 
     private Marker mLastSelectedMarker;
     private List<MarkerOptions> mMarkerOptions = new ArrayList<MarkerOptions>();
+    private List<Circle> mCircles = new ArrayList<Circle>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,7 +126,7 @@ public class MapsActivity extends AppCompatActivity
         mMap.setOnInfoWindowCloseListener(this);
         mMap.setOnInfoWindowLongClickListener(this);
         mMap.setOnMapLongClickListener(this);
-
+        mMap.setOnCameraChangeListener(this);
 
         // Override the default content description on the view, for accessibility mode.
         // Ideally this string would be localised.
@@ -258,6 +263,72 @@ public class MapsActivity extends AppCompatActivity
     @Override
     public void onInfoWindowLongClick(Marker marker) {
         //Toast.makeText(this, "Info Window long click", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onCameraChange(CameraPosition position) {
+        LatLngBounds bounds = mMap.getProjection().getVisibleRegion().latLngBounds;
+        updateHalos(bounds);
+    }
+
+    private void updateHalos(LatLngBounds bounds) {
+        for(Circle circle : mCircles) {
+                circle.remove();
+        }
+        mCircles.clear();
+
+        double left = bounds.southwest.longitude;
+        double right = bounds.northeast.longitude;
+        double bottom = bounds.southwest.latitude;
+        double top = bounds.northeast.latitude;
+
+        LatLng boundsPosition;
+
+        for (MarkerOptions markerOptions : mMarkerOptions) {
+            LatLng latLng = markerOptions.getPosition();
+
+            if (latLng.longitude < left) { // left region
+                if (latLng.latitude > top) // top left
+                    boundsPosition = new LatLng(top, left);
+                else if (latLng.latitude < bottom) // bottom left
+                    boundsPosition = bounds.southwest;
+                else
+                    boundsPosition = new LatLng(latLng.latitude, left);
+            } else if (latLng.longitude > right) { // right region
+                if (latLng.latitude > top) // top right
+                    boundsPosition = bounds.northeast;
+                else if (latLng.latitude < bottom) // bottom right
+                    boundsPosition = new LatLng(bottom, right);
+                else
+                    boundsPosition = new LatLng(latLng.latitude, right);
+            } else if (latLng.latitude > top) // top middle
+                boundsPosition = new LatLng(top, latLng.longitude);
+            else if (latLng.latitude < bottom) // bottom middle
+                boundsPosition = new LatLng(bottom, latLng.longitude);
+            else
+                continue;
+
+            float distance[] = new float[3];
+            Location.distanceBetween(latLng.latitude, latLng.longitude,
+                    boundsPosition.latitude, boundsPosition.longitude, distance);
+            Circle circle = mMap.addCircle(new CircleOptions()
+                        .center(latLng)
+                        .radius(distance[0] + 10.0f)
+                        .strokeWidth(30.0f)
+                        .strokeColor(Color.argb(125, 255, 0, 0)));
+            mCircles.add(circle);
+
+            /*
+            if (!(bounds.contains(latLng))) {
+                Circle circle = mMap.addCircle(new CircleOptions()
+                        .center(latLng)
+                        .radius(100)
+                        .strokeWidth(20.0f)
+                        .strokeColor(Color.argb(125, 255, 0, 0)));
+                mCircles.add(circle);
+            }
+            */
+        }
     }
 
     /**
